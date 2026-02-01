@@ -4,15 +4,11 @@ export type ApiError = {
   message?: string;
 };
 
-// 生产环境使用环境变量配置的 API 地址，开发环境使用相对路径（通过 Vite 代理）
-const API_BASE = import.meta.env.VITE_API_URL || "";
-
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = API_BASE + path;
-  const response = await fetch(url, {
+  const response = await fetch(path, {
     headers: {
       "Content-Type": "application/json",
       ...(options.headers ?? {}),

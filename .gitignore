@@ -30,3 +30,6 @@ check-*.js
 
 # Claude Code
 .claude/
+
+# Vercel
+.vercel/
