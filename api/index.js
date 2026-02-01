@@ -1,13 +1,3 @@
-let app;
-try {
-  app = require('../backend/src/app');
-} catch (err) {
-  // If app fails to load, export a handler that returns the error
-  module.exports = (req, res) => {
-    res.status(500).json({ error: err.message, stack: err.stack });
-  };
-}
+const app = require('../backend/src/app');
 
-if (app) {
-  module.exports = app;
-}
+module.exports = app;
