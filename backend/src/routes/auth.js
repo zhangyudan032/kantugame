@@ -117,11 +117,7 @@ router.post('/logout', authMiddleware, async (req, res) => {
       : 0;
 
     // Destroy session
-    req.session.destroy((err) => {
-      if (err) {
-        console.error('Session destroy error:', err);
-      }
-    });
+    req.session = null;
 
     res.json({
       message: '已退出',

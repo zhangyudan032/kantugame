@@ -9,6 +9,9 @@ const answersRoutes = require('./routes/answers');
 
 const app = express();
 
+// Trust proxy (Vercel terminates TLS at edge, forwards via HTTP internally)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(express.json());
 
