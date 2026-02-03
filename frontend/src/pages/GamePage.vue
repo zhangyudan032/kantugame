@@ -1,15 +1,11 @@
 <template>
   <section class="game-shell">
-    <div class="game-head">
-      <div class="game-title">
-        <p class="label">看图猜词</p>
-        <h2>开始答题</h2>
-      </div>
+    <div class="game-topbar">
       <div class="game-actions">
-        <button v-if="isAdmin" class="btn ghost" type="button" @click="goAdmin">
+        <button v-if="isAdmin" class="btn ghost tiny" type="button" @click="goAdmin">
           管理后台
         </button>
-        <button class="btn ghost" type="button" @click="handleLogout" :disabled="loggingOut">
+        <button class="btn ghost tiny" type="button" @click="handleLogout" :disabled="loggingOut">
           {{ loggingOut ? "退出中..." : "退出" }}
         </button>
       </div>
@@ -24,8 +20,7 @@
 
       <template v-else>
         <div class="game-content">
-          <div class="game-left">
-            <div class="image-frame">
+          <div class="image-frame">
               <img
                 v-if="question"
                 :src="question.imageUrl"
@@ -55,32 +50,29 @@
                 <div class="result-text wrong-text">答错了～</div>
                 <div class="result-text wrong-answer">正确答案：{{ result?.correctAnswer }}</div>
               </div>
-            </div>
           </div>
 
-          <div class="game-right">
-            <div class="answer-area" :class="{ disabled: showResult }">
-              <label class="field">
-                <span>你的答案</span>
-                <input
-                  v-model.trim="answer"
-                  type="text"
-                  placeholder="请输入你猜到的词语..."
-                  :disabled="submitting || showResult !== null"
-                  @keyup.enter="submitAnswer"
-                />
-              </label>
-              <div v-if="inputError" class="error small">{{ inputError }}</div>
-              <div class="actions">
-                <button
-                  class="btn primary full"
-                  type="button"
-                  @click="submitAnswer"
-                  :disabled="submitting || showResult !== null"
-                >
-                  {{ submitting ? "提交中..." : "提交答案" }}
-                </button>
-              </div>
+          <div class="answer-area" :class="{ disabled: showResult }">
+            <label class="field">
+              <span>你的答案</span>
+              <input
+                v-model.trim="answer"
+                type="text"
+                placeholder="请输入你猜到的词语..."
+                :disabled="submitting || showResult !== null"
+                @keyup.enter="submitAnswer"
+              />
+            </label>
+            <div v-if="inputError" class="error small">{{ inputError }}</div>
+            <div class="actions">
+              <button
+                class="btn primary full"
+                type="button"
+                @click="submitAnswer"
+                :disabled="submitting || showResult !== null"
+              >
+                {{ submitting ? "提交中..." : "提交答案" }}
+              </button>
             </div>
           </div>
         </div>
