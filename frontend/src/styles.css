@@ -499,6 +499,24 @@ a {
   gap: 14px;
 }
 
+.result-modal {
+  text-align: center;
+}
+
+.result-modal.correct h2 {
+  color: #0b6aa6;
+}
+
+.result-modal.wrong h2 {
+  color: #b42318;
+}
+
+.result-detail {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .stat-row {
   display: flex;
   justify-content: space-between;

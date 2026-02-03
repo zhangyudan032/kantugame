@@ -26,40 +26,19 @@
                 :src="question.imageUrl"
                 alt="题目图片"
                 @load="imageLoading = false"
-                @error="imageLoading = false"
+                @error="handleImageError"
               />
               <div v-if="imageLoading" class="image-loading">图片加载中...</div>
-
-              <div v-if="showResult === 'correct'" class="result-overlay correct">
-                <div class="firework firework-1">
-                  <span v-for="n in 12" :key="n" class="firework-particle" :style="`--i:${n}`"></span>
-                </div>
-                <div class="firework firework-2">
-                  <span v-for="n in 12" :key="n" class="firework-particle" :style="`--i:${n}`"></span>
-                </div>
-                <div class="firework firework-3">
-                  <span v-for="n in 12" :key="n" class="firework-particle" :style="`--i:${n}`"></span>
-                </div>
-                <div class="result-text correct-text">答对啦！</div>
-              </div>
-
-              <div v-if="showResult === 'wrong'" class="result-overlay wrong">
-                <div class="heart-break">
-                  <span class="heart-half left">💔</span>
-                </div>
-                <div class="result-text wrong-text">答错了～</div>
-                <div class="result-text wrong-answer">正确答案：{{ result?.correctAnswer }}</div>
-              </div>
           </div>
 
-          <div class="answer-area" :class="{ disabled: showResult }">
+          <div class="answer-area" :class="{ disabled: resultModal }">
             <label class="field">
               <span>你的答案</span>
               <input
                 v-model.trim="answer"
                 type="text"
                 placeholder="请输入你猜到的词语..."
-                :disabled="submitting || showResult !== null"
+                :disabled="submitting || resultModal !== null"
                 @keyup.enter="submitAnswer"
               />
             </label>
@@ -69,7 +48,7 @@
                 class="btn primary full"
                 type="button"
                 @click="submitAnswer"
-                :disabled="submitting || showResult !== null"
+                :disabled="submitting || resultModal !== null"
               >
                 {{ submitting ? "提交中..." : "提交答案" }}
               </button>
@@ -80,14 +59,19 @@
     </section>
   </section>
 
-  <StatsModal v-if="stats" :stats="stats" @confirm="confirmExit" />
+  <ResultModal
+    v-if="resultModal"
+    :type="resultModal"
+    :answer="result?.correctAnswer"
+    @confirm="handleResultConfirm"
+  />
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { apiRequest, type ApiError } from "../api";
-import StatsModal from "../components/StatsModal.vue";
+import ResultModal from "../components/ResultModal.vue";
 
 type Question = {
   id: string;
@@ -105,11 +89,6 @@ type AnswerResponse = {
 
 type LogoutResponse = {
   ok: boolean;
-  stats?: {
-    correctCount: number;
-    wrongCount: number;
-    accuracy: number;
-  };
 };
 
 type MeResponse = {
@@ -129,19 +108,17 @@ const answer = ref("");
 const inputError = ref("");
 const submitting = ref(false);
 const result = ref<AnswerResponse | null>(null);
-const showResult = ref<"correct" | "wrong" | null>(null);
-const stats = ref<LogoutResponse["stats"] | null>(null);
+const resultModal = ref<"correct" | "wrong" | null>(null);
 const loggingOut = ref(false);
 const isAdmin = ref(false);
-
-let autoAdvanceTimer: ReturnType<typeof setTimeout> | null = null;
+const imageRetrying = ref(false);
 
 const fetchQuestion = async () => {
   loading.value = true;
   imageLoading.value = true;
   inputError.value = "";
   result.value = null;
-  showResult.value = null;
+  resultModal.value = null;
   try {
     const data = await apiRequest<NextQuestionResponse>("/api/questions/next");
     if ("code" in data && data.code === "NO_QUESTION") {
@@ -191,18 +168,23 @@ const submitAnswer = async () => {
       }),
     });
     result.value = data;
-    showResult.value = data.isCorrect ? "correct" : "wrong";
-
-    autoAdvanceTimer = setTimeout(() => {
-      showResult.value = null;
-      nextQuestion();
-    }, 1000);
+    resultModal.value = data.isCorrect ? "correct" : "wrong";
   } catch (err) {
     const apiError = err as ApiError;
     inputError.value = apiError.message || "提交失败，请稍后重试";
   } finally {
     submitting.value = false;
   }
+};
+
+const handleImageError = async () => {
+  imageLoading.value = false;
+  if (imageRetrying.value) return;
+  imageRetrying.value = true;
+  inputError.value = "图片加载失败，正在换一题...";
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  imageRetrying.value = false;
+  await nextQuestion();
 };
 
 const nextQuestion = async () => {
@@ -213,13 +195,9 @@ const nextQuestion = async () => {
 const handleLogout = async () => {
   loggingOut.value = true;
   try {
-    const data = await apiRequest<LogoutResponse>("/api/auth/logout", {
+    await apiRequest<LogoutResponse>("/api/auth/logout", {
       method: "POST",
     });
-    if (data.stats) {
-      stats.value = data.stats;
-      return;
-    }
     await router.push("/login");
   } catch (err) {
     const apiError = err as ApiError;
@@ -229,9 +207,9 @@ const handleLogout = async () => {
   }
 };
 
-const confirmExit = async () => {
-  stats.value = null;
-  await router.push("/login");
+const handleResultConfirm = async () => {
+  resultModal.value = null;
+  await nextQuestion();
 };
 
 const goAdmin = async () => {
@@ -241,9 +219,5 @@ const goAdmin = async () => {
 onMounted(() => {
   fetchMe();
   fetchQuestion();
-});
-
-onUnmounted(() => {
-  if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
 });
 </script>
