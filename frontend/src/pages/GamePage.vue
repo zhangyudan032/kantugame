@@ -1,11 +1,11 @@
 <template>
-  <section class="card game-card">
+  <section class="game-shell">
     <div class="game-head">
       <div class="game-title">
         <p class="label">看图猜词</p>
         <h2>开始答题</h2>
       </div>
-      <div class="game-actions logout-btn">
+      <div class="game-actions">
         <button v-if="isAdmin" class="btn ghost" type="button" @click="goAdmin">
           管理后台
         </button>
@@ -15,83 +15,85 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading-block">
-      <div class="skeleton image"></div>
-      <div class="skeleton line"></div>
-      <div class="skeleton line short"></div>
-    </div>
-
-    <template v-else>
-      <div class="game-content">
-        <div class="game-left">
-          <div class="image-frame">
-            <img
-              v-if="question"
-              :src="question.imageUrl"
-              alt="题目图片"
-              @load="imageLoading = false"
-              @error="imageLoading = false"
-            />
-            <div v-if="imageLoading" class="image-loading">图片加载中...</div>
-
-            <div v-if="showResult === 'correct'" class="result-overlay correct">
-              <div class="firework firework-1">
-                <span v-for="n in 12" :key="n" class="firework-particle" :style="`--i:${n}`"></span>
-              </div>
-              <div class="firework firework-2">
-                <span v-for="n in 12" :key="n" class="firework-particle" :style="`--i:${n}`"></span>
-              </div>
-              <div class="firework firework-3">
-                <span v-for="n in 12" :key="n" class="firework-particle" :style="`--i:${n}`"></span>
-              </div>
-              <div class="result-text correct-text">答对啦！</div>
-            </div>
-
-            <div v-if="showResult === 'wrong'" class="result-overlay wrong">
-              <div class="heart-break">
-                <span class="heart-half left">💔</span>
-              </div>
-              <div class="result-text wrong-text">答错了～</div>
-              <div class="result-text wrong-answer">正确答案：{{ result?.correctAnswer }}</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="game-right">
-          <div class="guide-card">
-            <p class="guide-label">小提示</p>
-            <ul class="guide-list">
-              <li>先看整体，再看细节。</li>
-              <li>留意文字、动作与场景元素。</li>
-              <li>用中文关键词作答更准确。</li>
-            </ul>
-          </div>
-          <div class="answer-area" :class="{ disabled: showResult }">
-            <label class="field">
-              <span>你的答案</span>
-              <input
-                v-model.trim="answer"
-                type="text"
-                placeholder="请输入你猜到的词语..."
-                :disabled="submitting || showResult !== null"
-                @keyup.enter="submitAnswer"
-              />
-            </label>
-            <div v-if="inputError" class="error small">{{ inputError }}</div>
-            <div class="actions">
-              <button
-                class="btn primary full"
-                type="button"
-                @click="submitAnswer"
-                :disabled="submitting || showResult !== null"
-              >
-                {{ submitting ? "提交中..." : "提交答案" }}
-              </button>
-            </div>
-          </div>
-        </div>
+    <section class="card game-card">
+      <div v-if="loading" class="loading-block">
+        <div class="skeleton image"></div>
+        <div class="skeleton line"></div>
+        <div class="skeleton line short"></div>
       </div>
-    </template>
+
+      <template v-else>
+        <div class="game-content">
+          <div class="game-left">
+            <div class="image-frame">
+              <img
+                v-if="question"
+                :src="question.imageUrl"
+                alt="题目图片"
+                @load="imageLoading = false"
+                @error="imageLoading = false"
+              />
+              <div v-if="imageLoading" class="image-loading">图片加载中...</div>
+
+              <div v-if="showResult === 'correct'" class="result-overlay correct">
+                <div class="firework firework-1">
+                  <span v-for="n in 12" :key="n" class="firework-particle" :style="`--i:${n}`"></span>
+                </div>
+                <div class="firework firework-2">
+                  <span v-for="n in 12" :key="n" class="firework-particle" :style="`--i:${n}`"></span>
+                </div>
+                <div class="firework firework-3">
+                  <span v-for="n in 12" :key="n" class="firework-particle" :style="`--i:${n}`"></span>
+                </div>
+                <div class="result-text correct-text">答对啦！</div>
+              </div>
+
+              <div v-if="showResult === 'wrong'" class="result-overlay wrong">
+                <div class="heart-break">
+                  <span class="heart-half left">💔</span>
+                </div>
+                <div class="result-text wrong-text">答错了～</div>
+                <div class="result-text wrong-answer">正确答案：{{ result?.correctAnswer }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="game-right">
+            <div class="guide-card">
+              <p class="guide-label">小提示</p>
+              <ul class="guide-list">
+                <li>先看整体，再看细节。</li>
+                <li>留意文字、动作与场景元素。</li>
+                <li>用中文关键词作答更准确。</li>
+              </ul>
+            </div>
+            <div class="answer-area" :class="{ disabled: showResult }">
+              <label class="field">
+                <span>你的答案</span>
+                <input
+                  v-model.trim="answer"
+                  type="text"
+                  placeholder="请输入你猜到的词语..."
+                  :disabled="submitting || showResult !== null"
+                  @keyup.enter="submitAnswer"
+                />
+              </label>
+              <div v-if="inputError" class="error small">{{ inputError }}</div>
+              <div class="actions">
+                <button
+                  class="btn primary full"
+                  type="button"
+                  @click="submitAnswer"
+                  :disabled="submitting || showResult !== null"
+                >
+                  {{ submitting ? "提交中..." : "提交答案" }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </section>
   </section>
 
   <StatsModal v-if="stats" :stats="stats" @confirm="confirmExit" />
