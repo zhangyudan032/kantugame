@@ -106,6 +106,26 @@ async function generateQuestions(count = 5) {
   return questions;
 }
 
+async function saveQuestions(supabase, questions) {
+  let savedCount = 0;
+  for (const q of questions) {
+    if (q.image_url && q.answer) {
+      const { error } = await supabase
+        .from('questions')
+        .upsert(
+          { image_url: q.image_url, answer: q.answer, created_at: getBeijingTime() },
+          { onConflict: 'answer', ignoreDuplicates: true }
+        );
+      if (!error) {
+        savedCount++;
+      } else {
+        console.error('Failed to insert question:', error.message);
+      }
+    }
+  }
+  return savedCount;
+}
+
 // 检查并自动生成题目（异步执行，不阻塞请求）
 async function checkAndGenerateQuestions(supabase, userId) {
   try {
@@ -120,6 +140,7 @@ async function checkAndGenerateQuestions(supabase, userId) {
       .eq('user_id', userId);
 
     const remainingQuestions = (totalQuestions || 0) - (answeredQuestions || 0);
+    console.log(`[Coze] Total: ${totalQuestions}, Answered: ${answeredQuestions}, Remaining: ${remainingQuestions}`);
 
     // 剩余题目 <= 5 时触发生成
     if (remainingQuestions <= 5) {
@@ -128,22 +149,7 @@ async function checkAndGenerateQuestions(supabase, userId) {
       const newQuestions = await generateQuestions(5);
 
       if (newQuestions.length > 0) {
-        let savedCount = 0;
-        for (const q of newQuestions) {
-          if (q.image_url && q.answer) {
-            const { error } = await supabase
-              .from('questions')
-              .upsert(
-                { image_url: q.image_url, answer: q.answer, created_at: getBeijingTime() },
-                { onConflict: 'answer', ignoreDuplicates: true }
-              );
-            if (!error) {
-              savedCount++;
-            } else {
-              console.error('Failed to insert question:', error.message);
-            }
-          }
-        }
+        const savedCount = await saveQuestions(supabase, newQuestions);
         console.log(`Saved ${savedCount} new questions to database`);
       }
     }
@@ -155,5 +161,6 @@ async function checkAndGenerateQuestions(supabase, userId) {
 module.exports = {
   generateOneQuestion,
   generateQuestions,
+  saveQuestions,
   checkAndGenerateQuestions
 };

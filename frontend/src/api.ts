@@ -34,7 +34,7 @@ export async function apiRequest<T>(
   const error: ApiError = {
     status: response.status,
     code: body?.code,
-    message: body?.message,
+    message: body?.message ?? body?.error,
   };
   throw error;
 }

@@ -1,9 +1,21 @@
 const express = require('express');
 const supabase = require('../config/supabase');
 const authMiddleware = require('../middleware/auth');
-const { checkAndGenerateQuestions } = require('../services/coze');
+const { checkAndGenerateQuestions, generateQuestions, saveQuestions } = require('../services/coze');
 
 const router = express.Router();
+
+async function fetchUnansweredQuestions(supabase, answeredIds) {
+  let query = supabase
+    .from('questions')
+    .select('id, image_url, created_at');
+
+  if (answeredIds.length > 0) {
+    query = query.not('id', 'in', `(${answeredIds.join(',')})`);
+  }
+
+  return query.limit(10);
+}
 
 // GET /api/questions/next - 获取下一题
 router.get('/next', authMiddleware, async (req, res) => {
@@ -40,24 +52,29 @@ router.get('/next', authMiddleware, async (req, res) => {
     }
 
     // Get a random unanswered question
-    let query = supabase
-      .from('questions')
-      .select('id, image_url, created_at');
-
-    if (answeredIds.length > 0) {
-      query = query.not('id', 'in', `(${answeredIds.join(',')})`);
-    }
-
-    const { data: questions, error } = await query.limit(10);
+    let { data: questions, error } = await fetchUnansweredQuestions(supabase, answeredIds);
 
     if (error) {
       console.error('Get question error:', error);
-      return res.status(500).json({ error: '获取题目失败' });
+      return res.status(500).json({ error: error.message || '获取题目失败' });
     }
 
     if (!questions || questions.length === 0) {
-      req.session.currentQuestionId = null;
-      return res.json({ code: 'NO_QUESTION' });
+      const newQuestions = await generateQuestions(2);
+      if (newQuestions.length > 0) {
+        await saveQuestions(supabase, newQuestions);
+        const refreshed = await fetchUnansweredQuestions(supabase, answeredIds);
+        questions = refreshed.data;
+        error = refreshed.error;
+        if (error) {
+          console.error('Get question error:', error);
+          return res.status(500).json({ error: error.message || '获取题目失败' });
+        }
+      }
+      if (!questions || questions.length === 0) {
+        req.session.currentQuestionId = null;
+        return res.json({ code: 'NO_QUESTION' });
+      }
     }
 
     // Pick a random one from the fetched questions

@@ -120,12 +120,11 @@ router.post('/logout', authMiddleware, async (req, res) => {
     req.session = null;
 
     res.json({
-      message: '已退出',
-      statistics: {
-        totalAnswered,
+      ok: true,
+      stats: {
         correctCount,
         wrongCount: totalAnswered - correctCount,
-        accuracy: `${accuracy}%`
+        accuracy
       }
     });
   } catch (error) {

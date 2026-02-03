@@ -1,26 +1,5 @@
 <template>
   <section class="card game-card">
-    <div class="game-head">
-      <div class="game-title">
-        <span class="pill">本局任务</span>
-        <h2>看图猜词</h2>
-        <p class="muted">看图 → 输入词语 → 提交答案</p>
-      </div>
-      <button
-        class="btn ghost logout-btn"
-        type="button"
-        @click="handleLogout"
-        :disabled="loggingOut"
-      >
-        {{ loggingOut ? "退出中..." : "退出登录" }}
-      </button>
-    </div>
-
-    <div class="stepper">
-      <div class="step"><span class="step-num">1</span>看图</div>
-      <div class="step"><span class="step-num">2</span>输入词语</div>
-      <div class="step"><span class="step-num">3</span>提交</div>
-    </div>
 
     <div v-if="loading" class="loading-block">
       <div class="skeleton image"></div>
@@ -29,51 +8,74 @@
     </div>
 
     <template v-else>
-      <div class="label">题目图片</div>
-      <div class="image-frame">
-        <img
-          v-if="question"
-          :src="question.imageUrl"
-          alt="题目图片"
-          @load="imageLoading = false"
-          @error="imageLoading = false"
-        />
-        <div v-if="imageLoading" class="image-loading">图片加载中...</div>
-      </div>
+      <div class="game-content">
+        <div class="game-left">
+          <div class="image-frame">
+            <img
+              v-if="question"
+              :src="question.imageUrl"
+              alt="题目图片"
+              @load="imageLoading = false"
+              @error="imageLoading = false"
+            />
+            <div v-if="imageLoading" class="image-loading">图片加载中...</div>
 
-      <div v-if="result" class="result-banner" :class="result.isCorrect ? 'ok' : 'bad'">
-        <span v-if="result.isCorrect">🎉 答对了！</span>
-        <span v-else>❌ 正确答案：{{ result.correctAnswer }}</span>
-      </div>
+            <div v-if="showResult === 'correct'" class="result-overlay correct">
+              <div class="firework firework-1">
+                <span v-for="n in 12" :key="n" class="firework-particle" :style="`--i:${n}`"></span>
+              </div>
+              <div class="firework firework-2">
+                <span v-for="n in 12" :key="n" class="firework-particle" :style="`--i:${n}`"></span>
+              </div>
+              <div class="firework firework-3">
+                <span v-for="n in 12" :key="n" class="firework-particle" :style="`--i:${n}`"></span>
+              </div>
+              <div class="result-text correct-text">答对啦！</div>
+            </div>
 
-      <div v-else class="answer-area">
-        <label class="field">
-          <span>你的答案</span>
-          <input
-            v-model.trim="answer"
-            type="text"
-            placeholder="请输入你猜到的词语..."
-            :disabled="submitting"
-            @keyup.enter="submitAnswer"
-          />
-        </label>
-        <p class="muted hint">提示：仔细观察图片里的物体或动作。</p>
-        <div v-if="inputError" class="error small">{{ inputError }}</div>
-      </div>
+            <div v-if="showResult === 'wrong'" class="result-overlay wrong">
+              <div class="heart-break">
+                <span class="heart-half left">💔</span>
+              </div>
+              <div class="result-text wrong-text">答错了～</div>
+              <div class="result-text wrong-answer">正确答案：{{ result?.correctAnswer }}</div>
+            </div>
+          </div>
+        </div>
 
-      <div class="actions">
-        <button
-          v-if="!result"
-          class="btn primary"
-          type="button"
-          @click="submitAnswer"
-          :disabled="submitting"
-        >
-          {{ submitting ? "提交中..." : "提交答案" }}
-        </button>
-        <button v-else class="btn primary" type="button" @click="nextQuestion">
-          下一题
-        </button>
+        <div class="game-right">
+          <div class="guide-card">
+            <p class="guide-label">小提示</p>
+            <ul class="guide-list">
+              <li>先看整体，再看细节。</li>
+              <li>留意文字、动作与场景元素。</li>
+              <li>用中文关键词作答更准确。</li>
+            </ul>
+          </div>
+          <div class="answer-area" :class="{ disabled: showResult }">
+            <label class="field">
+              <span>你的答案</span>
+              <input
+                v-model.trim="answer"
+                type="text"
+                placeholder="请输入你猜到的词语..."
+                :disabled="submitting || showResult !== null"
+                @keyup.enter="submitAnswer"
+              />
+            </label>
+            <div v-if="inputError" class="error small">{{ inputError }}</div>
+            <div class="actions">
+              <button
+                class="btn primary full"
+                type="button"
+                @click="submitAnswer"
+                :disabled="submitting || showResult !== null"
+              >
+                {{ submitting ? "提交中..." : "提交答案" }}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </template>
   </section>
@@ -82,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { apiRequest, type ApiError } from "../api";
 import StatsModal from "../components/StatsModal.vue";
@@ -118,14 +120,18 @@ const answer = ref("");
 const inputError = ref("");
 const submitting = ref(false);
 const result = ref<AnswerResponse | null>(null);
+const showResult = ref<"correct" | "wrong" | null>(null);
 const stats = ref<LogoutResponse["stats"] | null>(null);
 const loggingOut = ref(false);
+
+let autoAdvanceTimer: ReturnType<typeof setTimeout> | null = null;
 
 const fetchQuestion = async () => {
   loading.value = true;
   imageLoading.value = true;
   inputError.value = "";
   result.value = null;
+  showResult.value = null;
   try {
     const data = await apiRequest<NextQuestionResponse>("/api/questions/next");
     if ("code" in data && data.code === "NO_QUESTION") {
@@ -139,7 +145,7 @@ const fetchQuestion = async () => {
       await router.push("/");
       return;
     }
-    inputError.value = "获取题目失败，请稍后重试";
+    inputError.value = apiError.message || "获取题目失败，请稍后重试";
   } finally {
     loading.value = false;
   }
@@ -163,8 +169,15 @@ const submitAnswer = async () => {
       }),
     });
     result.value = data;
-  } catch {
-    inputError.value = "提交失败，请稍后重试";
+    showResult.value = data.isCorrect ? "correct" : "wrong";
+
+    autoAdvanceTimer = setTimeout(() => {
+      showResult.value = null;
+      nextQuestion();
+    }, 1000);
+  } catch (err) {
+    const apiError = err as ApiError;
+    inputError.value = apiError.message || "提交失败，请稍后重试";
   } finally {
     submitting.value = false;
   }
@@ -200,4 +213,8 @@ const confirmExit = async () => {
 };
 
 onMounted(fetchQuestion);
+
+onUnmounted(() => {
+  if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+});
 </script>
