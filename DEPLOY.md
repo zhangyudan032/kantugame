@@ -45,6 +45,7 @@ git push -u origin main
    - `COZE_API_KEY`
    - `COZE_WORKFLOW_ID`
    - `NODE_ENV=production`
+   - `ADMIN_EMAILS` = 管理员邮箱（逗号分隔）
 
 5. Vercel 会自动构建并部署：
    - 前端输出：`/`
@@ -70,6 +71,7 @@ git push -u origin main
 | COZE_API_KEY | Coze API 密钥 |
 | COZE_WORKFLOW_ID | Coze 工作流 ID |
 | NODE_ENV | 设为 `production` |
+| ADMIN_EMAILS | 管理员邮箱列表（逗号分隔） |
 
 ### 前端 (仅分离部署时需要)
 

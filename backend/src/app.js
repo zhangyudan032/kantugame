@@ -6,6 +6,7 @@ const cookieSession = require('cookie-session');
 const authRoutes = require('./routes/auth');
 const questionsRoutes = require('./routes/questions');
 const answersRoutes = require('./routes/answers');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use(cookieSession({
 app.use('/api/auth', authRoutes);
 app.use('/api/questions', questionsRoutes);
 app.use('/api/answers', answersRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
