@@ -63,6 +63,12 @@
         {{ mode === "login" ? "去注册" : "去登录" }}
       </button>
     </div>
+    <div class="switch">
+      <span>管理员入口</span>
+      <button class="link" type="button" @click="goAdmin">
+        进入后台
+      </button>
+    </div>
   </section>
 </template>
 
@@ -92,6 +98,11 @@ const resetNotices = () => {
 const toggleMode = () => {
   resetNotices();
   mode.value = mode.value === "login" ? "register" : "login";
+};
+
+const goAdmin = async () => {
+  resetNotices();
+  await router.push("/admin");
 };
 
 const handleSubmit = async () => {
