@@ -25,6 +25,7 @@
                 v-if="question"
                 :src="question.imageUrl"
                 alt="题目图片"
+                referrerpolicy="no-referrer"
                 @load="imageLoading = false"
                 @error="handleImageError"
               />
