@@ -59,14 +59,6 @@
           </div>
 
           <div class="game-right">
-            <div class="guide-card">
-              <p class="guide-label">小提示</p>
-              <ul class="guide-list">
-                <li>先看整体，再看细节。</li>
-                <li>留意文字、动作与场景元素。</li>
-                <li>用中文关键词作答更准确。</li>
-              </ul>
-            </div>
             <div class="answer-area" :class="{ disabled: showResult }">
               <label class="field">
                 <span>你的答案</span>

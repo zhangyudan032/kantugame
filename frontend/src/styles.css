@@ -275,7 +275,7 @@ a {
 
 .game-content {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 360px);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
   gap: 24px;
   align-items: stretch;
 }
@@ -285,10 +285,10 @@ a {
 }
 
 .game-right {
-  display: grid;
-  grid-template-rows: 1fr auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
   gap: 18px;
-  align-content: stretch;
   min-height: 200px;
   min-width: 0;
 }
@@ -358,7 +358,7 @@ a {
   background: #fff;
   border: 3px solid var(--ink);
   width: 100%;
-  height: min(60vh, 720px);
+  height: min(72vh, 900px);
   min-height: 260px;
   display: grid;
   place-items: center;
