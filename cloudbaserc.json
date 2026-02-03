@@ -1,0 +1,23 @@
+{
+  "envId": "caitugame-zhangyudan-7br4ed1f237",
+  "functionRoot": "backend",
+  "functions": [
+    {
+      "name": "kantugame-api",
+      "handler": "scf.main",
+      "runtime": "Nodejs16.13",
+      "timeout": 60,
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "SUPABASE_URL": "https://your-project.supabase.co",
+        "SUPABASE_KEY": "your-anon-key",
+        "SESSION_SECRET": "your-session-secret",
+        "COZE_API_KEY": "your-coze-api-key",
+        "COZE_WORKFLOW_ID": "your-workflow-id",
+        "NODE_ENV": "production",
+        "FRONTEND_URL": "https://your-app.vercel.app"
+      }
+    }
+  ]
+}
