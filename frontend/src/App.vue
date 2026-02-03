@@ -8,9 +8,11 @@
       </div>
     </header>
     <main class="main">
-      <transition name="page" mode="out-in">
-        <router-view />
-      </transition>
+      <router-view v-slot="{ Component }">
+        <transition name="page" mode="out-in">
+          <component :is="Component" :key="route.fullPath" />
+        </transition>
+      </router-view>
     </main>
     <footer v-if="!hideShell" class="foot">
       <span>看得准、猜得快，挑战你的观察力！</span>
@@ -23,5 +25,5 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 
 const route = useRoute();
-const hideShell = computed(() => route.path === "/game");
+const hideShell = computed(() => ["/game", "/empty", "/admin"].includes(route.path));
 </script>

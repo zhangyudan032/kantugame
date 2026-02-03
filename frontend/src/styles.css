@@ -306,6 +306,12 @@ a {
   justify-self: end;
 }
 
+.game-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .stepper {
   display: flex;
   justify-content: center;
@@ -352,7 +358,9 @@ a {
   background: #fff;
   border: 3px solid var(--ink);
   width: 100%;
-  height: min(70vh, 800px);
+  aspect-ratio: 64 / 100;
+  height: auto;
+  max-height: 80vh;
   min-height: 260px;
   display: grid;
   place-items: center;
@@ -587,7 +595,7 @@ a {
   }
 
   .image-frame {
-    height: min(50vh, 520px);
+    max-height: 60vh;
   }
 }
 

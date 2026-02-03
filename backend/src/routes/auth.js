@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const supabase = require('../config/supabase');
 const authMiddleware = require('../middleware/auth');
+const { isAdminEmail } = require('../utils/admin');
 const { getBeijingTime } = require('../utils/time');
 
 const router = express.Router();
@@ -131,6 +132,19 @@ router.post('/logout', authMiddleware, async (req, res) => {
     console.error('Logout error:', error);
     res.status(500).json({ error: '服务器错误' });
   }
+});
+
+// GET /api/auth/me - 当前用户信息
+router.get('/me', authMiddleware, (req, res) => {
+  const email = req.session?.email || null;
+  res.json({
+    ok: true,
+    user: {
+      id: req.session?.userId || null,
+      email,
+      isAdmin: isAdminEmail(email)
+    }
+  });
 });
 
 module.exports = router;

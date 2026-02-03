@@ -1,5 +1,19 @@
 <template>
   <section class="card game-card">
+    <div class="game-head">
+      <div class="game-title">
+        <p class="label">看图猜词</p>
+        <h2>开始答题</h2>
+      </div>
+      <div class="game-actions logout-btn">
+        <button v-if="isAdmin" class="btn ghost" type="button" @click="goAdmin">
+          管理后台
+        </button>
+        <button class="btn ghost" type="button" @click="handleLogout" :disabled="loggingOut">
+          {{ loggingOut ? "退出中..." : "退出" }}
+        </button>
+      </div>
+    </div>
 
     <div v-if="loading" class="loading-block">
       <div class="skeleton image"></div>
@@ -112,6 +126,15 @@ type LogoutResponse = {
   };
 };
 
+type MeResponse = {
+  ok: boolean;
+  user: {
+    id: string | null;
+    email: string | null;
+    isAdmin: boolean;
+  };
+};
+
 const router = useRouter();
 const question = ref<Question | null>(null);
 const loading = ref(true);
@@ -123,6 +146,7 @@ const result = ref<AnswerResponse | null>(null);
 const showResult = ref<"correct" | "wrong" | null>(null);
 const stats = ref<LogoutResponse["stats"] | null>(null);
 const loggingOut = ref(false);
+const isAdmin = ref(false);
 
 let autoAdvanceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -148,6 +172,18 @@ const fetchQuestion = async () => {
     inputError.value = apiError.message || "获取题目失败，请稍后重试";
   } finally {
     loading.value = false;
+  }
+};
+
+const fetchMe = async () => {
+  try {
+    const data = await apiRequest<MeResponse>("/api/auth/me");
+    isAdmin.value = Boolean(data.user?.isAdmin);
+  } catch (err) {
+    const apiError = err as ApiError;
+    if (apiError.status === 401) {
+      await router.push("/login");
+    }
   }
 };
 
@@ -212,7 +248,14 @@ const confirmExit = async () => {
   await router.push("/login");
 };
 
-onMounted(fetchQuestion);
+const goAdmin = async () => {
+  await router.push("/admin");
+};
+
+onMounted(() => {
+  fetchMe();
+  fetchQuestion();
+});
 
 onUnmounted(() => {
   if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
