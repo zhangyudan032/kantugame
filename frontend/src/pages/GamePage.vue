@@ -65,6 +65,7 @@
     :answer="result?.correctAnswer"
     @confirm="handleResultConfirm"
   />
+  <StatsModal v-if="logoutStats" :stats="logoutStats" @confirm="confirmExit" />
 </template>
 
 <script setup lang="ts">
@@ -72,6 +73,7 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { apiRequest, type ApiError } from "../api";
 import ResultModal from "../components/ResultModal.vue";
+import StatsModal from "../components/StatsModal.vue";
 
 type Question = {
   id: string;
@@ -89,6 +91,11 @@ type AnswerResponse = {
 
 type LogoutResponse = {
   ok: boolean;
+  stats?: {
+    correctCount: number;
+    wrongCount: number;
+    accuracy: number;
+  };
 };
 
 type MeResponse = {
@@ -112,6 +119,7 @@ const resultModal = ref<"correct" | "wrong" | null>(null);
 const loggingOut = ref(false);
 const isAdmin = ref(false);
 const imageRetrying = ref(false);
+const logoutStats = ref<LogoutResponse["stats"] | null>(null);
 
 const fetchQuestion = async () => {
   loading.value = true;
@@ -195,9 +203,13 @@ const nextQuestion = async () => {
 const handleLogout = async () => {
   loggingOut.value = true;
   try {
-    await apiRequest<LogoutResponse>("/api/auth/logout", {
+    const data = await apiRequest<LogoutResponse>("/api/auth/logout", {
       method: "POST",
     });
+    if (data.stats) {
+      logoutStats.value = data.stats;
+      return;
+    }
     await router.push("/login");
   } catch (err) {
     const apiError = err as ApiError;
@@ -210,6 +222,11 @@ const handleLogout = async () => {
 const handleResultConfirm = async () => {
   resultModal.value = null;
   await nextQuestion();
+};
+
+const confirmExit = async () => {
+  logoutStats.value = null;
+  await router.push("/login");
 };
 
 const goAdmin = async () => {

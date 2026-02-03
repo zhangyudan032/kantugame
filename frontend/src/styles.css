@@ -348,7 +348,9 @@ a {
   background: #fff;
   border: 3px solid var(--ink);
   width: 100%;
-  height: min(75vh, 900px);
+  aspect-ratio: 64 / 100;
+  height: auto;
+  max-height: calc(100vh - 260px);
   min-height: 320px;
   display: grid;
   place-items: center;
@@ -579,7 +581,8 @@ a {
   }
 
   .image-frame {
-    height: min(55vh, 520px);
+    max-height: calc(100vh - 260px);
+    min-height: 260px;
   }
 }
 
