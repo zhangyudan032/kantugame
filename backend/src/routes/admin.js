@@ -33,7 +33,10 @@ router.get('/health', adminMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Admin health error:', error);
-    res.status(500).json({ error: '服务器错误' });
+    const message = process.env.NODE_ENV === 'production'
+      ? 'Server error'
+      : (error?.message || 'Server error');
+    res.status(500).json({ error: message });
   }
 });
 
@@ -52,7 +55,10 @@ router.post('/generate', adminMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Admin generate error:', error);
-    res.status(500).json({ error: '生成题目失败' });
+    const message = process.env.NODE_ENV === 'production'
+      ? 'Generate failed'
+      : (error?.message || 'Generate failed');
+    res.status(500).json({ error: message });
   }
 });
 

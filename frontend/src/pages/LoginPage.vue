@@ -67,14 +67,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { apiRequest, type ApiError } from "../api";
+import { trackEvent } from "../utils/analytics";
 import { isValidEmail } from "../utils/validators";
 
 type AuthMode = "login" | "register";
 
 const router = useRouter();
+const route = useRoute();
 const mode = ref<AuthMode>("login");
 const email = ref("");
 const password = ref("");
@@ -88,6 +90,19 @@ const resetNotices = () => {
   error.value = "";
   newUserNotice.value = "";
 };
+
+const applyLogoutReset = () => {
+  if (route.query.from !== "logout") return;
+  resetNotices();
+  mode.value = "login";
+  email.value = "";
+  password.value = "";
+  confirmPassword.value = "";
+  rememberMe.value = false;
+  router.replace("/login");
+};
+
+watch(() => route.query.from, applyLogoutReset, { immediate: true });
 
 const toggleMode = () => {
   resetNotices();
@@ -123,6 +138,7 @@ const handleSubmit = async () => {
           rememberMe: rememberMe.value,
         }),
       });
+      trackEvent("login", { method: "email" });
       await router.push("/game");
       return;
     }
@@ -135,6 +151,7 @@ const handleSubmit = async () => {
         rememberMe: rememberMe.value,
       }),
     });
+    trackEvent("sign_up", { method: "email" });
     await router.push("/game");
   } catch (err) {
     const apiError = err as ApiError;

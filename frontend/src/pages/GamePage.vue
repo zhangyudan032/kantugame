@@ -1,6 +1,8 @@
 <template>
   <section class="game-shell">
-    <div class="game-topbar">
+
+    <section class="card game-card">
+      <div class="game-topbar">
       <div class="game-actions">
         <button v-if="isAdmin" class="btn ghost tiny" type="button" @click="goAdmin">
           管理后台
@@ -9,9 +11,8 @@
           {{ loggingOut ? "退出中..." : "退出" }}
         </button>
       </div>
-    </div>
+      </div>
 
-    <section class="card game-card">
       <div v-if="loading" class="loading-block">
         <div class="skeleton image"></div>
         <div class="skeleton line"></div>
@@ -23,10 +24,10 @@
           <div class="image-frame">
               <img
                 v-if="question"
-                :src="question.imageUrl"
+                :src="imageSrc"
                 alt="题目图片"
                 referrerpolicy="no-referrer"
-                @load="imageLoading = false"
+                @load="handleImageLoad"
                 @error="handleImageError"
               />
               <div v-if="imageLoading" class="image-loading">图片加载中...</div>
@@ -44,6 +45,17 @@
               />
             </label>
             <div v-if="inputError" class="error small">{{ inputError }}</div>
+            <div v-if="imageError" class="error small">
+              {{ imageError }}
+              <div class="image-error-actions">
+                <button class="btn ghost tiny" type="button" @click="retryImage">
+                  重试
+                </button>
+                <button class="btn ghost tiny" type="button" @click="nextQuestion">
+                  换一题
+                </button>
+              </div>
+            </div>
             <div class="actions">
               <button
                 class="btn primary full"
@@ -70,9 +82,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { apiRequest, type ApiError } from "../api";
+import { trackEvent } from "../utils/analytics";
 import ResultModal from "../components/ResultModal.vue";
 import StatsModal from "../components/StatsModal.vue";
 
@@ -112,6 +125,8 @@ const router = useRouter();
 const question = ref<Question | null>(null);
 const loading = ref(true);
 const imageLoading = ref(true);
+const imageError = ref("");
+const imageReloadToken = ref(0);
 const answer = ref("");
 const inputError = ref("");
 const submitting = ref(false);
@@ -125,6 +140,8 @@ const logoutStats = ref<LogoutResponse["stats"] | null>(null);
 const fetchQuestion = async () => {
   loading.value = true;
   imageLoading.value = true;
+  imageError.value = "";
+  imageReloadToken.value = 0;
   inputError.value = "";
   result.value = null;
   resultModal.value = null;
@@ -176,6 +193,11 @@ const submitAnswer = async () => {
         answer: answer.value.trim(),
       }),
     });
+    trackEvent("submit_answer", {
+      question_id: question.value.id,
+      is_correct: data.isCorrect,
+      answer_length: answer.value.trim().length,
+    });
     result.value = data;
     resultModal.value = data.isCorrect ? "correct" : "wrong";
   } catch (err) {
@@ -190,11 +212,29 @@ const handleImageError = async () => {
   imageLoading.value = false;
   if (imageRetrying.value) return;
   imageRetrying.value = true;
-  inputError.value = "图片加载失败，正在换一题...";
-  await new Promise((resolve) => setTimeout(resolve, 600));
+  imageError.value = "图片加载失败，请重试或换一题";
+  await new Promise((resolve) => setTimeout(resolve, 300));
   imageRetrying.value = false;
-  await nextQuestion();
 };
+
+const handleImageLoad = () => {
+  imageLoading.value = false;
+  imageError.value = "";
+};
+
+const retryImage = () => {
+  if (!question.value) return;
+  imageError.value = "";
+  imageLoading.value = true;
+  imageReloadToken.value = Date.now();
+};
+
+const imageSrc = computed(() => {
+  if (!question.value) return "";
+  if (!imageReloadToken.value) return question.value.imageUrl;
+  const sep = question.value.imageUrl.includes("?") ? "&" : "?";
+  return `${question.value.imageUrl}${sep}t=${imageReloadToken.value}`;
+});
 
 const nextQuestion = async () => {
   answer.value = "";
@@ -207,6 +247,15 @@ const handleLogout = async () => {
     const data = await apiRequest<LogoutResponse>("/api/auth/logout", {
       method: "POST",
     });
+    const logoutParams: Record<string, string | number | boolean> = {
+      via: "button",
+    };
+    if (data.stats) {
+      logoutParams.correct_count = data.stats.correctCount;
+      logoutParams.wrong_count = data.stats.wrongCount;
+      logoutParams.accuracy = data.stats.accuracy;
+    }
+    trackEvent("logout", logoutParams);
     if (data.stats) {
       logoutStats.value = data.stats;
       return;
@@ -227,7 +276,7 @@ const handleResultConfirm = async () => {
 
 const confirmExit = async () => {
   logoutStats.value = null;
-  await router.push("/login");
+  window.location.replace("/login");
 };
 
 const goAdmin = async () => {
