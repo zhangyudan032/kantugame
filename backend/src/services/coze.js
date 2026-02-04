@@ -163,43 +163,90 @@ async function generateQuestions(count = 5) {
   return questions;
 }
 
+// 保存题目（先用原始 URL，快速响应）
 async function saveQuestions(supabase, questions) {
   let savedCount = 0;
+  const savedIds = [];
+
   for (const q of questions) {
     if (q.image_url && q.answer) {
-      try {
-        // 将临时图片转存到 Supabase Storage
-        console.log(`Uploading image for "${q.answer}" to Supabase Storage...`);
-        const permanentUrl = await uploadImageToSupabase(supabase, q.image_url);
-        console.log(`Image uploaded: ${permanentUrl}`);
+      // 先用原始 URL 保存，让题目立即可用
+      const { data, error } = await supabase
+        .from('questions')
+        .upsert(
+          { image_url: q.image_url, answer: q.answer, created_at: getBeijingTime() },
+          { onConflict: 'answer', ignoreDuplicates: true }
+        )
+        .select('id')
+        .single();
 
-        const { error } = await supabase
-          .from('questions')
-          .upsert(
-            { image_url: permanentUrl, answer: q.answer, created_at: getBeijingTime() },
-            { onConflict: 'answer', ignoreDuplicates: true }
-          );
-        if (!error) {
-          savedCount++;
-        } else {
-          console.error('Failed to insert question:', error.message);
-        }
-      } catch (uploadError) {
-        console.error(`Failed to upload image for "${q.answer}":`, uploadError.message);
-        // 如果转存失败，尝试使用原始 URL（可能仍然有问题）
-        const { error } = await supabase
-          .from('questions')
-          .upsert(
-            { image_url: q.image_url, answer: q.answer, created_at: getBeijingTime() },
-            { onConflict: 'answer', ignoreDuplicates: true }
-          );
-        if (!error) {
-          savedCount++;
-        }
+      if (!error && data) {
+        savedCount++;
+        savedIds.push(data.id);
+        console.log(`Saved question: ${q.answer}`);
+      } else if (error) {
+        console.error('Failed to insert question:', error.message);
       }
     }
   }
+
+  // 异步转存图片（不阻塞响应）
+  if (savedIds.length > 0) {
+    setImmediate(() => {
+      migrateImagesToStorage(supabase, savedIds).catch(err => {
+        console.error('Background image migration failed:', err.message);
+      });
+    });
+  }
+
   return savedCount;
+}
+
+// 异步转存图片到 Supabase Storage
+async function migrateImagesToStorage(supabase, questionIds = null) {
+  try {
+    // 获取需要转存的题目（非 supabase 链接的）
+    let query = supabase
+      .from('questions')
+      .select('id, image_url, answer')
+      .not('image_url', 'like', '%supabase%');
+
+    if (questionIds && questionIds.length > 0) {
+      query = query.in('id', questionIds);
+    }
+
+    const { data: questions, error } = await query.limit(10);
+
+    if (error || !questions || questions.length === 0) {
+      console.log('No images to migrate');
+      return { migrated: 0 };
+    }
+
+    let migrated = 0;
+    for (const q of questions) {
+      try {
+        console.log(`Migrating image for "${q.answer}"...`);
+        const permanentUrl = await uploadImageToSupabase(supabase, q.image_url);
+
+        const { error: updateError } = await supabase
+          .from('questions')
+          .update({ image_url: permanentUrl })
+          .eq('id', q.id);
+
+        if (!updateError) {
+          migrated++;
+          console.log(`Migrated: ${q.answer} -> ${permanentUrl}`);
+        }
+      } catch (err) {
+        console.error(`Failed to migrate "${q.answer}":`, err.message);
+      }
+    }
+
+    return { migrated, total: questions.length };
+  } catch (error) {
+    console.error('Migration error:', error.message);
+    return { migrated: 0, error: error.message };
+  }
 }
 
 // 检查并自动生成题目（异步执行，不阻塞请求）
@@ -238,5 +285,7 @@ module.exports = {
   generateOneQuestion,
   generateQuestions,
   saveQuestions,
-  checkAndGenerateQuestions
+  checkAndGenerateQuestions,
+  migrateImagesToStorage,
+  uploadImageToSupabase
 };
