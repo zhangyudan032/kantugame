@@ -2,6 +2,7 @@ export type ApiError = {
   status: number;
   code?: string;
   message?: string;
+  name?: string;
 };
 
 export async function apiRequest<T>(

@@ -116,15 +116,25 @@ const handleAuthError = async (apiError: ApiError) => {
 const fetchHealth = async () => {
   loading.value = true;
   error.value = "";
+
+  // 添加超时处理
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   try {
-    const data = await apiRequest<HealthResponse>("/api/admin/health");
+    const data = await apiRequest<HealthResponse>("/api/admin/health", {
+      signal: controller.signal
+    });
     health.value = data;
   } catch (err) {
     const apiError = err as ApiError;
-    if (!(await handleAuthError(apiError))) {
+    if (apiError.name === 'AbortError' || (err as Error).name === 'AbortError') {
+      error.value = "请求超时，请点击刷新重试";
+    } else if (!(await handleAuthError(apiError))) {
       error.value = apiError.message || "获取健康检查失败";
     }
   } finally {
+    clearTimeout(timeoutId);
     loading.value = false;
   }
 };
