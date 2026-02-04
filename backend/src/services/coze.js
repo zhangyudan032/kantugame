@@ -1,5 +1,62 @@
 const https = require('https');
+const http = require('http');
 const { getBeijingTime } = require('../utils/time');
+
+// 下载图片并上传到 Supabase Storage
+async function uploadImageToSupabase(supabase, imageUrl) {
+  return new Promise((resolve, reject) => {
+    const protocol = imageUrl.startsWith('https') ? https : http;
+
+    protocol.get(imageUrl, (response) => {
+      // 处理重定向
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        uploadImageToSupabase(supabase, response.headers.location)
+          .then(resolve)
+          .catch(reject);
+        return;
+      }
+
+      if (response.statusCode !== 200) {
+        reject(new Error(`Failed to download image: ${response.statusCode}`));
+        return;
+      }
+
+      const chunks = [];
+      response.on('data', (chunk) => chunks.push(chunk));
+      response.on('end', async () => {
+        try {
+          const buffer = Buffer.concat(chunks);
+
+          // 生成唯一文件名
+          const fileName = `questions/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+
+          // 上传到 Supabase Storage
+          const { data, error } = await supabase.storage
+            .from('images')
+            .upload(fileName, buffer, {
+              contentType: 'image/png',
+              cacheControl: '31536000'
+            });
+
+          if (error) {
+            reject(new Error(`Failed to upload to Supabase: ${error.message}`));
+            return;
+          }
+
+          // 获取公开 URL
+          const { data: urlData } = supabase.storage
+            .from('images')
+            .getPublicUrl(fileName);
+
+          resolve(urlData.publicUrl);
+        } catch (err) {
+          reject(err);
+        }
+      });
+      response.on('error', reject);
+    }).on('error', reject);
+  });
+}
 
 // 调用一次工作流，生成一道题
 function generateOneQuestion() {
@@ -110,16 +167,35 @@ async function saveQuestions(supabase, questions) {
   let savedCount = 0;
   for (const q of questions) {
     if (q.image_url && q.answer) {
-      const { error } = await supabase
-        .from('questions')
-        .upsert(
-          { image_url: q.image_url, answer: q.answer, created_at: getBeijingTime() },
-          { onConflict: 'answer', ignoreDuplicates: true }
-        );
-      if (!error) {
-        savedCount++;
-      } else {
-        console.error('Failed to insert question:', error.message);
+      try {
+        // 将临时图片转存到 Supabase Storage
+        console.log(`Uploading image for "${q.answer}" to Supabase Storage...`);
+        const permanentUrl = await uploadImageToSupabase(supabase, q.image_url);
+        console.log(`Image uploaded: ${permanentUrl}`);
+
+        const { error } = await supabase
+          .from('questions')
+          .upsert(
+            { image_url: permanentUrl, answer: q.answer, created_at: getBeijingTime() },
+            { onConflict: 'answer', ignoreDuplicates: true }
+          );
+        if (!error) {
+          savedCount++;
+        } else {
+          console.error('Failed to insert question:', error.message);
+        }
+      } catch (uploadError) {
+        console.error(`Failed to upload image for "${q.answer}":`, uploadError.message);
+        // 如果转存失败，尝试使用原始 URL（可能仍然有问题）
+        const { error } = await supabase
+          .from('questions')
+          .upsert(
+            { image_url: q.image_url, answer: q.answer, created_at: getBeijingTime() },
+            { onConflict: 'answer', ignoreDuplicates: true }
+          );
+        if (!error) {
+          savedCount++;
+        }
       }
     }
   }
