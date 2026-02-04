@@ -33,6 +33,10 @@
           <span>{{ health?.counts.answers ?? 0 }}</span>
         </div>
         <div class="stat-row">
+          <span>待迁移图片</span>
+          <span>{{ health?.counts.pendingImageMigration ?? 0 }}</span>
+        </div>
+        <div class="stat-row">
           <span>环境</span>
           <span>{{ health?.server.nodeEnv ?? "-" }}</span>
         </div>
@@ -43,19 +47,20 @@
       </template>
     </template>
 
-    <form class="form" @submit.prevent="handleGenerate">
+    <form class="form" @submit.prevent="handleTriggerGenerate">
       <label class="field">
-        <span>生成题量（1 - 20）</span>
-        <input v-model.number="count" type="number" min="1" max="20" />
+        <span>生成题量（1 - 10）</span>
+        <input v-model.number="count" type="number" min="1" max="10" />
       </label>
       <div class="actions">
-        <button class="btn primary" type="submit" :disabled="submitting">
-          {{ submitting ? "生成中..." : "生成题目" }}
+        <button class="btn primary" type="submit" :disabled="triggering">
+          {{ triggering ? "触发中..." : "后台生成题目" }}
         </button>
         <button class="btn ghost" type="button" :disabled="loading" @click="fetchHealth">
           刷新状态
         </button>
       </div>
+      <p class="muted small">点击后将在后台生成题目，无需等待，稍后刷新查看结果。</p>
     </form>
 
     <div v-if="message" class="result-banner" :class="messageType">{{ message }}</div>
@@ -74,27 +79,27 @@ type HealthResponse = {
     questions: number;
     users: number;
     answers: number;
+    pendingImageMigration: number;
   };
   server: {
     nodeEnv: string;
   };
 };
 
-type GenerateResponse = {
+type TriggerResponse = {
   ok: boolean;
-  requested: number;
-  generated: number;
-  saved: number;
+  message: string;
+  count: number;
 };
 
 const router = useRouter();
 const loading = ref(true);
-const submitting = ref(false);
+const triggering = ref(false);
 const health = ref<HealthResponse | null>(null);
 const error = ref("");
 const message = ref("");
 const messageType = ref<"ok" | "bad">("ok");
-const count = ref(5);
+const count = ref(3);
 
 const handleAuthError = async (apiError: ApiError) => {
   if (apiError.status === 401) {
@@ -124,27 +129,26 @@ const fetchHealth = async () => {
   }
 };
 
-const handleGenerate = async () => {
+const handleTriggerGenerate = async () => {
   message.value = "";
-  const safeCount = Math.max(1, Math.min(20, Math.floor(Number(count.value) || 0)));
+  const safeCount = Math.max(1, Math.min(10, Math.floor(Number(count.value) || 0)));
   count.value = safeCount;
-  submitting.value = true;
+  triggering.value = true;
   try {
-    const data = await apiRequest<GenerateResponse>("/api/admin/generate", {
+    const data = await apiRequest<TriggerResponse>("/api/admin/trigger-generate", {
       method: "POST",
       body: JSON.stringify({ count: safeCount }),
     });
     messageType.value = "ok";
-    message.value = `本次请求 ${data.requested} 题，生成 ${data.generated} 题，入库 ${data.saved} 题。`;
-    await fetchHealth();
+    message.value = data.message;
   } catch (err) {
     const apiError = err as ApiError;
     messageType.value = "bad";
     if (!(await handleAuthError(apiError))) {
-      message.value = apiError.message || "生成题目失败";
+      message.value = apiError.message || "触发失败";
     }
   } finally {
-    submitting.value = false;
+    triggering.value = false;
   }
 };
 

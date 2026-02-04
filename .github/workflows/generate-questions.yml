@@ -1,0 +1,38 @@
+name: Generate Questions
+
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: '生成题目数量'
+        required: true
+        default: '3'
+        type: string
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          npm install
+
+      - name: Generate questions
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          COZE_API_KEY: ${{ secrets.COZE_API_KEY }}
+          COZE_WORKFLOW_ID: ${{ secrets.COZE_WORKFLOW_ID }}
+        run: |
+          cd backend
+          node scripts/generate-questions.js ${{ inputs.count }}

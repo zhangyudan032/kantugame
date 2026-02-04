@@ -73,6 +73,64 @@ router.post('/generate', adminMiddleware, async (req, res) => {
   }
 });
 
+// 触发 GitHub Actions 生成题目
+router.post('/trigger-generate', adminMiddleware, async (req, res) => {
+  try {
+    const githubToken = process.env.GITHUB_TOKEN;
+    const repo = process.env.GITHUB_REPO || 'zhangyudan032/kantugame';
+
+    if (!githubToken) {
+      return res.status(500).json({ error: '未配置 GITHUB_TOKEN' });
+    }
+
+    const count = Math.max(1, Math.min(10, Number(req.body?.count) || 3));
+
+    const data = JSON.stringify({
+      ref: 'main',
+      inputs: { count: String(count) }
+    });
+
+    const options = {
+      hostname: 'api.github.com',
+      path: `/repos/${repo}/actions/workflows/generate-questions.yml/dispatches`,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data),
+        'User-Agent': 'kantugame-admin'
+      }
+    };
+
+    const result = await new Promise((resolve, reject) => {
+      const req = require('https').request(options, (response) => {
+        let body = '';
+        response.on('data', chunk => body += chunk);
+        response.on('end', () => {
+          if (response.statusCode === 204) {
+            resolve({ success: true });
+          } else {
+            reject(new Error(`GitHub API error: ${response.statusCode} - ${body}`));
+          }
+        });
+      });
+      req.on('error', reject);
+      req.write(data);
+      req.end();
+    });
+
+    res.json({
+      ok: true,
+      message: `已触发生成 ${count} 道题目，请稍后刷新查看结果`,
+      count
+    });
+  } catch (error) {
+    console.error('Trigger generate error:', error);
+    res.status(500).json({ error: error.message || '触发失败' });
+  }
+});
+
 // 手动触发图片迁移
 router.post('/migrate-images', adminMiddleware, async (req, res) => {
   try {
