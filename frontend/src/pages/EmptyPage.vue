@@ -99,8 +99,8 @@ const fetchMe = async () => {
   }
 };
 
-const goAdmin = async () => {
-  await router.push("/admin");
+const goAdmin = () => {
+  window.location.href = "/admin";
 };
 
 onMounted(() => {
